@@ -9,36 +9,29 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth-context';
 import { Customer } from '@/lib/types';
 import { Plus, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function CustomersPage() {
+  const { user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', industry: '' });
 
+  const tenantId = user?.tenant_id;
+
   const fetchCustomers = async () => {
+    if (!tenantId) return;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.email) return;
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('email', session.user.email)
-        .maybeSingle();
-
-      if (!userData) return;
-
       const { data } = await supabase
         .from('customers')
         .select('*')
-        .eq('tenant_id', userData.tenant_id)
+        .eq('tenant_id', tenantId)
         .order('created_at', { ascending: false });
-
       setCustomers(data || []);
     } catch (error) {
       console.error('Failed to fetch customers:', error);
@@ -48,26 +41,15 @@ export default function CustomersPage() {
   };
 
   useEffect(() => {
-    fetchCustomers();
-  }, []);
+    if (tenantId) fetchCustomers();
+  }, [tenantId]);
 
   const handleAddCustomer = async () => {
-    if (!formData.name || !formData.industry) return;
+    if (!formData.name || !formData.industry || !tenantId) return;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.email) return;
-
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('email', session.user.email)
-        .maybeSingle();
-
-      if (!userData) return;
-
       const { error } = await supabase.from('customers').insert({
-        tenant_id: userData.tenant_id,
+        tenant_id: tenantId,
         name: formData.name,
         industry: formData.industry,
         status: 'Active',
