@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +13,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [debug, setDebug] = useState('');
-  const router = useRouter();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +45,8 @@ export default function LoginPage() {
 
       setDebug('Session created, redirecting to dashboard...');
 
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Hard navigation ensures the new session is picked up cleanly
+      window.location.href = '/dashboard';
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred';
       setDebug(`Caught error: ${message}`);
