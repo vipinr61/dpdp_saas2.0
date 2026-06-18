@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
-import { Customer, Scan } from '@/lib/types';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { AlertCircle, TrendingUp, Zap } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     activeCustomers: 0,
     activeScans: 0,
@@ -18,26 +18,18 @@ export default function DashboardPage() {
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const tenantId = user?.tenant_id;
+
   useEffect(() => {
     const fetchDashboardData = async () => {
+      if (!tenantId) return;
+
       try {
-        // Get current user to access their tenant
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user?.email) return;
-
-        const { data: userData } = await supabase
-          .from('users')
-          .select('tenant_id')
-          .eq('email', session.user.email)
-          .maybeSingle();
-
-        if (!userData) return;
-
         // Active customers
         const { data: customers } = await supabase
           .from('customers')
           .select('*')
-          .eq('tenant_id', userData.tenant_id)
+          .eq('tenant_id', tenantId)
           .eq('status', 'Active');
 
         // Active scans (Running or Pending)
@@ -62,7 +54,7 @@ export default function DashboardPage() {
         const { data: recentCustomers } = await supabase
           .from('customers')
           .select('*')
-          .eq('tenant_id', userData.tenant_id)
+          .eq('tenant_id', tenantId)
           .order('last_assessment_date', { ascending: false })
           .limit(5);
 
@@ -70,7 +62,7 @@ export default function DashboardPage() {
           recentCustomers?.map((c) => ({
             customer: c.name,
             event: 'Assessment Completed',
-            date: new Date(c.last_assessment_date).toLocaleDateString(),
+            date: c.last_assessment_date ? new Date(c.last_assessment_date).toLocaleDateString() : 'N/A',
             status: c.status,
           })) || []
         );
@@ -78,7 +70,7 @@ export default function DashboardPage() {
         // Monthly data
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
         setMonthlyData(
-          months.map((month, i) => ({
+          months.map((month) => ({
             month,
             assessments: Math.floor(Math.random() * 8) + 2,
           }))
@@ -91,7 +83,7 @@ export default function DashboardPage() {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [tenantId]);
 
   return (
     <div className="p-6 space-y-6">
